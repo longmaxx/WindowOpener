@@ -23,15 +23,16 @@
   - Выход из спящего режима по нажатию кнопки и каждые 32 секунды по Watchdog
 */
 
-int wdt_counter = 0;
-bool flag_runMainLoop = true;
+volatile int wdt_counter = 0;
+volatile bool flag_runMainLoop = true;
 Servo SRV1;
 #define SERVO1_PIN 9
 #define SERVO1_POWER_PIN 5
 #define SERVO_POWER_STATE_ENABLED HIGH
 #define SERVO_POWER_STATE_DISABLED LOW
 #define SERVO1_CLOSED_VAL 0
-#define SERVO1_OPENED_VAL 1700
+#define SERVO1_OPENED_VAL 180
+#define SERVO1_DRIVE_TIME 2000
 
 #define BTN_OPEN1_PIN 2
 #define BTN_CLOSE1_PIN 3
@@ -43,12 +44,8 @@ Servo SRV1;
 // watchdog interrupt
 ISR(WDT_vect) 
 {
-  wdt_DoEnable();
-  if (wdt_counter<4){
-    wdt_counter++;
-  }else{
-    wakeUpNow();
-  }  
+  wdt_counter++;
+  
 }
 
 void wakeUpNow()
@@ -74,13 +71,15 @@ void setup()
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
   init_ServoInitMoves();
-  
+  wdt_enable(WDTO_8S);
 }
 
 void loop()
 {
   // put your main code here, to run repeatedly:
-  
+  if (wdt_counter>4){
+    flag_runMainLoop = true;
+  }
   if (flag_runMainLoop){
     flag_runMainLoop = false;
     setLED(HIGH);
@@ -88,27 +87,29 @@ void loop()
     {
       servoPower(SERVO_POWER_STATE_ENABLED);
       SRV1.write(SERVO1_OPENED_VAL);
-      delay(5000);
+      delay(SERVO1_DRIVE_TIME);
       servoPower(SERVO_POWER_STATE_DISABLED);
     }
     else if (servo1_needClose())
     {
       servoPower(SERVO_POWER_STATE_ENABLED);
       SRV1.write(SERVO1_CLOSED_VAL);
-      delay(5000);
+      delay(SERVO1_DRIVE_TIME);
       servoPower(SERVO_POWER_STATE_DISABLED);
     }
     setLED(LOW);
     wdt_DoEnable();
+    wdt_counter = 0;
     sleepNow();// sleep until button pressed
   }
 }
 
 void wdt_DoEnable()
 {
+  wdt_disable();
   wdt_enable(WDTO_8S);
   wdt_reset();
-  wdt_counter = 0;
+  //wdt_counter = 0;
 }
 
 bool servo1_needOpen()
@@ -136,7 +137,7 @@ void init_ServoInitMoves()
   // Servo init move
   servoPower(SERVO_POWER_STATE_ENABLED);
   SRV1.write(SERVO1_OPENED_VAL);
-  delay(1500);
+  delay(SERVO1_DRIVE_TIME);
   SRV1.write(SERVO1_CLOSED_VAL);
   servoPower(SERVO_POWER_STATE_DISABLED);
 
