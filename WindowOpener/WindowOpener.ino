@@ -5,7 +5,12 @@
 #include <avr/wdt.h>
 
 /*
-  
+ !!!Для работы WDT надо перепрошивать стандартный загрузчик в ардуино.
+ https://geektimes.ru/post/255800/
+*/
+
+/*
+  Board: Arduino Nano v 3.0
   Кнопка Открыть1 - пин 2
   Кнопка Закрыть1 - пин 3
   Ключ питания привода - пин 5
@@ -42,11 +47,10 @@ Servo SRV1;
 #define LED_PIN 13
 
 // watchdog interrupt
-ISR(WDT_vect) 
-{
-  wdt_counter++;
-  
-}
+//ISR(WDT_vect) 
+//{
+//  wdt_counter++;
+//}
 
 void wakeUpNow()
 {
@@ -71,11 +75,13 @@ void setup()
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
   init_ServoInitMoves();
-  wdt_enable(WDTO_8S);
+//  wdt_reset();
+//  wdt_enable(WDTO_8S);
 }
 
 void loop()
 {
+  //wdt_disable();
   // put your main code here, to run repeatedly:
   if (wdt_counter>4){
     flag_runMainLoop = true;
@@ -98,19 +104,18 @@ void loop()
       servoPower(SERVO_POWER_STATE_DISABLED);
     }
     setLED(LOW);
-    wdt_DoEnable();
-    wdt_counter = 0;
-    sleepNow();// sleep until button pressed
+//    wdt_DoEnable();
+//    wdt_counter = 0;
   }
 }
 
-void wdt_DoEnable()
-{
-  wdt_disable();
-  wdt_enable(WDTO_8S);
-  wdt_reset();
-  //wdt_counter = 0;
-}
+//void wdt_DoEnable()
+//{
+//  wdt_disable();
+//  wdt_enable(WDTO_8S);
+//  wdt_reset();
+//  //wdt_counter = 0;
+//}
 
 bool servo1_needOpen()
 {
