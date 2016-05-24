@@ -15,8 +15,8 @@
   Кнопка Закрыть1 - пин 3
   Ключ питания привода - пин 5
   Сервопривод1 - пин 9
-  Термометр ds18b20 - пин 10
-  часы DS1307 - пины SDA, CLK
+  Термометр ds18b20 - пин 12
+  //часы DS1307 - пины SDA, CLK
   LED - Nano internal (pin 13)
 */
 
@@ -46,18 +46,9 @@ Servo SRV1;
 
 #define LED_PIN 13
 
-// watchdog interrupt
-//ISR(WDT_vect) 
-//{
-//  wdt_counter++;
-//}
-
 void wakeUpNow()
 {
-  // action in interrupt on wake from sleep
-  wdt_disable();  // disable watchdog
-  wdt_counter = 0;
-  flag_runMainLoop = true;
+   
 }
 
 void setup() 
@@ -75,17 +66,10 @@ void setup()
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
   init_ServoInitMoves();
-//  wdt_reset();
-//  wdt_enable(WDTO_8S);
 }
 
 void loop()
 {
-  //wdt_disable();
-  // put your main code here, to run repeatedly:
-  if (wdt_counter>4){
-    flag_runMainLoop = true;
-  }
   if (flag_runMainLoop){
     flag_runMainLoop = false;
     setLED(HIGH);
@@ -104,18 +88,10 @@ void loop()
       servoPower(SERVO_POWER_STATE_DISABLED);
     }
     setLED(LOW);
-//    wdt_DoEnable();
-//    wdt_counter = 0;
+    prepareAndRunTimer();
+    sleepNow();
   }
 }
-
-//void wdt_DoEnable()
-//{
-//  wdt_disable();
-//  wdt_enable(WDTO_8S);
-//  wdt_reset();
-//  //wdt_counter = 0;
-//}
 
 bool servo1_needOpen()
 {
@@ -207,4 +183,59 @@ void sleepNow()         // here we put the arduino to sleep
     detachInterrupt(1);      // wakeUpNow code will not be executed
                              // during normal running time.
 }
+
+//==================Thermometer================================
+void setTemperatureResolution()
+{
+    ds.reset();
+    ds.write(0xCC); // skip ROM
+    ds.write(0x4E);///write scratchpad
+    ds.write(0x00);//TH
+    ds.write(0x00);//TL
+    ds.write(0b01011111);//prefs
+}
+void readDS18B20Scratchpad(){
+  byte i;
+  ds.reset();
+  ds.write(0xCC);
+  //ds.reset();
+  ds.write(0x44); // start conversion
+  delay(400);     // wait conversion
+  // we might do a ds.depower() here, but the reset will take care of it.
+   
+  ds.reset();
+  ds.write(0xCC);//skip rom
+  //ds.reset();    
+  ds.write(0xBE);         // Read Scratchpad
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+    scratchpad[i] = ds.read();
+  }
+}
+
+float getTemperatureCelsium()
+{
+  byte type_s = false;
+  // Convert the data to actual temperature
+  // because the result is a 16 bit signed integer, it should
+  // be stored to an "int16_t" type, which is always 16 bits
+  // even when compiled on a 32 bit processor.
+  int16_t raw = (scratchpad[1] << 8) | scratchpad[0];
+  if (type_s) {
+    raw = raw << 3; // 9 bit resolution default
+    if (scratchpad[7] == 0x10) {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - scratchpad[6];
+    }
+  } else {
+    byte cfg = (scratchpad[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  return (float)raw / 16.0;
+  
+}
+//==================End Thermometer============================
 
