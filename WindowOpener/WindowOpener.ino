@@ -46,6 +46,18 @@ Servo SRV1;
 
 #define LED_PIN 13
 
+#define postscalerVal 100;
+volatile unsigned int postscale = postscalerVal;
+ISR (TIMER2_OVF_vect)
+{
+  postscale--;
+  if (postscale==0){
+    flag_runMainLoop = true;
+    postscale = postscalerVal;
+    timer2_stop();
+  }
+}
+
 void wakeUpNow()
 {
    
@@ -88,9 +100,28 @@ void loop()
       servoPower(SERVO_POWER_STATE_DISABLED);
     }
     setLED(LOW);
-    prepareAndRunTimer();
-    sleepNow();
+    setup_Timer2();
   }
+  sleepNow();
+}
+
+void setup_Timer2()
+{
+  TIMSK2=0x00;
+  TCCR2B=0x00;
+  TCCR2A=0x00;
+  TIFR2=0x00;
+
+  TCNT2= 0x00;         //reset timer count to 125 out of 255. 
+  TCCR2B=0x07;     //using a prescaler of 6 to use divisor 1024.
+  TIMSK2=1;      //timer2 Interrupt Mask Register. Set TOIE(Timer Overflow Interrupt Enable).
+
+  postscale = postscalerVal;
+}
+
+void timer2_stop()
+{
+  TCCR2B = 0;// no clock input
 }
 
 bool servo1_needOpen()
@@ -145,7 +176,7 @@ void sleepNow()         // here we put the arduino to sleep
      * sleep mode: SLEEP_MODE_PWR_DOWN
      *
      */  
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here
+    set_sleep_mode(SLEEP_MODE_PWR_SAVE);   // sleep mode is set here
  
     sleep_enable();          // enables the sleep bit in the mcucr register
                              // so sleep is possible. just a safety pin
@@ -184,58 +215,58 @@ void sleepNow()         // here we put the arduino to sleep
                              // during normal running time.
 }
 
-//==================Thermometer================================
-void setTemperatureResolution()
-{
-    ds.reset();
-    ds.write(0xCC); // skip ROM
-    ds.write(0x4E);///write scratchpad
-    ds.write(0x00);//TH
-    ds.write(0x00);//TL
-    ds.write(0b01011111);//prefs
-}
-void readDS18B20Scratchpad(){
-  byte i;
-  ds.reset();
-  ds.write(0xCC);
-  //ds.reset();
-  ds.write(0x44); // start conversion
-  delay(400);     // wait conversion
-  // we might do a ds.depower() here, but the reset will take care of it.
-   
-  ds.reset();
-  ds.write(0xCC);//skip rom
-  //ds.reset();    
-  ds.write(0xBE);         // Read Scratchpad
-  for ( i = 0; i < 9; i++) {           // we need 9 bytes
-    scratchpad[i] = ds.read();
-  }
-}
-
-float getTemperatureCelsium()
-{
-  byte type_s = false;
-  // Convert the data to actual temperature
-  // because the result is a 16 bit signed integer, it should
-  // be stored to an "int16_t" type, which is always 16 bits
-  // even when compiled on a 32 bit processor.
-  int16_t raw = (scratchpad[1] << 8) | scratchpad[0];
-  if (type_s) {
-    raw = raw << 3; // 9 bit resolution default
-    if (scratchpad[7] == 0x10) {
-      // "count remain" gives full 12 bit resolution
-      raw = (raw & 0xFFF0) + 12 - scratchpad[6];
-    }
-  } else {
-    byte cfg = (scratchpad[4] & 0x60);
-    // at lower res, the low bits are undefined, so let's zero them
-    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-    //// default is 12 bit resolution, 750 ms conversion time
-  }
-  return (float)raw / 16.0;
-  
-}
-//==================End Thermometer============================
+////==================Thermometer================================
+//void setTemperatureResolution()
+//{
+//    ds.reset();
+//    ds.write(0xCC); // skip ROM
+//    ds.write(0x4E);///write scratchpad
+//    ds.write(0x00);//TH
+//    ds.write(0x00);//TL
+//    ds.write(0b01011111);//prefs
+//}
+//void readDS18B20Scratchpad(){
+//  byte i;
+//  ds.reset();
+//  ds.write(0xCC);
+//  //ds.reset();
+//  ds.write(0x44); // start conversion
+//  delay(400);     // wait conversion
+//  // we might do a ds.depower() here, but the reset will take care of it.
+//   
+//  ds.reset();
+//  ds.write(0xCC);//skip rom
+//  //ds.reset();    
+//  ds.write(0xBE);         // Read Scratchpad
+//  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+//    scratchpad[i] = ds.read();
+//  }
+//}
+//
+//float getTemperatureCelsium()
+//{
+//  byte type_s = false;
+//  // Convert the data to actual temperature
+//  // because the result is a 16 bit signed integer, it should
+//  // be stored to an "int16_t" type, which is always 16 bits
+//  // even when compiled on a 32 bit processor.
+//  int16_t raw = (scratchpad[1] << 8) | scratchpad[0];
+//  if (type_s) {
+//    raw = raw << 3; // 9 bit resolution default
+//    if (scratchpad[7] == 0x10) {
+//      // "count remain" gives full 12 bit resolution
+//      raw = (raw & 0xFFF0) + 12 - scratchpad[6];
+//    }
+//  } else {
+//    byte cfg = (scratchpad[4] & 0x60);
+//    // at lower res, the low bits are undefined, so let's zero them
+//    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+//    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+//    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+//    //// default is 12 bit resolution, 750 ms conversion time
+//  }
+//  return (float)raw / 16.0;
+//  
+//}
+////==================End Thermometer============================
 
