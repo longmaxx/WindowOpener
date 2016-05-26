@@ -30,6 +30,7 @@
 
 volatile int wdt_counter = 0;
 volatile bool flag_runMainLoop = true;
+volatile bool flag_runOnTimerLoop = true;
 Servo SRV1;
 #define SERVO1_PIN 9
 #define SERVO1_POWER_PIN 5
@@ -46,6 +47,15 @@ Servo SRV1;
 
 #define LED_PIN 13
 
+#define ONE_WIRE1_PIN 12
+OneWire ds(ONE_WIRE1_PIN);
+byte scratchpad[12];
+float lastCelsium;
+
+#define CELSIUM_LEVEL_OPEN  30 
+#define CELSIUM_LEVEL_CLOSE 20
+
+
 #define postscalerVal 100;
 volatile unsigned int postscale = postscalerVal;
 ISR (TIMER2_OVF_vect)
@@ -53,6 +63,7 @@ ISR (TIMER2_OVF_vect)
   postscale--;
   if (postscale==0){
     flag_runMainLoop = true;
+    flag_runOnTimerLoop = true;
     postscale = postscalerVal;
     timer2_stop();
   }
@@ -85,24 +96,66 @@ void loop()
   if (flag_runMainLoop){
     flag_runMainLoop = false;
     setLED(HIGH);
-    if (servo1_needOpen())
-    {
-      servoPower(SERVO_POWER_STATE_ENABLED);
-      SRV1.write(SERVO1_OPENED_VAL);
-      delay(SERVO1_DRIVE_TIME);
-      servoPower(SERVO_POWER_STATE_DISABLED);
+    if (flag_runOnTimerLoop){
+      flag_runOnTimerLoop = false;
+      timerLoop();
     }
-    else if (servo1_needClose())
-    {
-      servoPower(SERVO_POWER_STATE_ENABLED);
-      SRV1.write(SERVO1_CLOSED_VAL);
-      delay(SERVO1_DRIVE_TIME);
-      servoPower(SERVO_POWER_STATE_DISABLED);
-    }
-    setLED(LOW);
+    mainLoop();
     setup_Timer2();
+    setLED(LOW);
   }
   sleepNow();
+}
+
+void mainLoop()
+{
+  if (onButton_Open())
+    {
+      open_window1();
+    }
+    else if (onButton_Close())
+    {
+      close_window1();
+    }
+}
+
+void open_window1()
+{
+  moveServo1ToValue(SERVO1_OPENED_VAL);
+}
+
+void close_window1()
+{
+  moveServo1ToValue(SERVO1_CLOSED_VAL);
+}
+
+void moveServo1ToValue(byte value)
+{
+  servoPower(SERVO_POWER_STATE_ENABLED);
+  SRV1.write(value);
+  delay(SERVO1_DRIVE_TIME);
+  servoPower(SERVO_POWER_STATE_DISABLED);  
+}
+
+void timerLoop()
+{
+  //refresh temperature
+  readDS18B20Scratchpad();
+  lastCelsium = getTemperatureCelsium();
+  //move window 
+  moveServo1ToValue(getNeededWindowStateBySensors());
+  
+}
+
+byte getNeededWindowStateBySensors()
+{
+  if (lastCelsium >= CELSIUM_LEVEL_OPEN){
+    return SERVO1_OPENED_VAL;  
+  }
+  
+  if (lastCelsium <= CELSIUM_LEVEL_CLOSE){
+    return   SERVO1_CLOSED_VAL;
+  }
 }
 
 void setup_Timer2()
@@ -124,12 +177,12 @@ void timer2_stop()
   TCCR2B = 0;// no clock input
 }
 
-bool servo1_needOpen()
+bool onButton_Open()
 {
   return ((digitalRead(BTN_OPEN1_PIN) == BTN_STATE_PRESSED) && (digitalRead(BTN_CLOSE1_PIN) != BTN_STATE_PRESSED));
 }
 
-bool servo1_needClose()
+bool onButton_Close()
 {
   return ((digitalRead(BTN_CLOSE1_PIN) == BTN_STATE_PRESSED) && (digitalRead(BTN_OPEN1_PIN) != BTN_STATE_PRESSED));
 }
@@ -215,58 +268,58 @@ void sleepNow()         // here we put the arduino to sleep
                              // during normal running time.
 }
 
-////==================Thermometer================================
-//void setTemperatureResolution()
-//{
-//    ds.reset();
-//    ds.write(0xCC); // skip ROM
-//    ds.write(0x4E);///write scratchpad
-//    ds.write(0x00);//TH
-//    ds.write(0x00);//TL
-//    ds.write(0b01011111);//prefs
-//}
-//void readDS18B20Scratchpad(){
-//  byte i;
-//  ds.reset();
-//  ds.write(0xCC);
-//  //ds.reset();
-//  ds.write(0x44); // start conversion
-//  delay(400);     // wait conversion
-//  // we might do a ds.depower() here, but the reset will take care of it.
-//   
-//  ds.reset();
-//  ds.write(0xCC);//skip rom
-//  //ds.reset();    
-//  ds.write(0xBE);         // Read Scratchpad
-//  for ( i = 0; i < 9; i++) {           // we need 9 bytes
-//    scratchpad[i] = ds.read();
-//  }
-//}
-//
-//float getTemperatureCelsium()
-//{
-//  byte type_s = false;
-//  // Convert the data to actual temperature
-//  // because the result is a 16 bit signed integer, it should
-//  // be stored to an "int16_t" type, which is always 16 bits
-//  // even when compiled on a 32 bit processor.
-//  int16_t raw = (scratchpad[1] << 8) | scratchpad[0];
-//  if (type_s) {
-//    raw = raw << 3; // 9 bit resolution default
-//    if (scratchpad[7] == 0x10) {
-//      // "count remain" gives full 12 bit resolution
-//      raw = (raw & 0xFFF0) + 12 - scratchpad[6];
-//    }
-//  } else {
-//    byte cfg = (scratchpad[4] & 0x60);
-//    // at lower res, the low bits are undefined, so let's zero them
-//    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-//    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-//    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-//    //// default is 12 bit resolution, 750 ms conversion time
-//  }
-//  return (float)raw / 16.0;
-//  
-//}
-////==================End Thermometer============================
+//==================Thermometer================================
+void setTemperatureResolution()
+{
+    ds.reset();
+    ds.write(0xCC); // skip ROM
+    ds.write(0x4E);///write scratchpad
+    ds.write(0x00);//TH
+    ds.write(0x00);//TL
+    ds.write(0b01011111);//prefs
+}
+void readDS18B20Scratchpad(){
+  byte i;
+  ds.reset();
+  ds.write(0xCC);
+  //ds.reset();
+  ds.write(0x44); // start conversion
+  delay(400);     // wait conversion
+  // we might do a ds.depower() here, but the reset will take care of it.
+   
+  ds.reset();
+  ds.write(0xCC);//skip rom
+  //ds.reset();    
+  ds.write(0xBE);         // Read Scratchpad
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+    scratchpad[i] = ds.read();
+  }
+}
+
+float getTemperatureCelsium()
+{
+  byte type_s = false;
+  // Convert the data to actual temperature
+  // because the result is a 16 bit signed integer, it should
+  // be stored to an "int16_t" type, which is always 16 bits
+  // even when compiled on a 32 bit processor.
+  int16_t raw = (scratchpad[1] << 8) | scratchpad[0];
+  if (type_s) {
+    raw = raw << 3; // 9 bit resolution default
+    if (scratchpad[7] == 0x10) {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - scratchpad[6];
+    }
+  } else {
+    byte cfg = (scratchpad[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  return (float)raw / 16.0;
+  
+}
+//==================End Thermometer============================
 
