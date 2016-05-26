@@ -55,8 +55,8 @@ float lastCelsium;
 #define CELSIUM_LEVEL_OPEN  30 
 #define CELSIUM_LEVEL_CLOSE 20
 
-
-#define postscalerVal 100;
+// 1000 = 15 сек
+#define postscalerVal (2000)
 volatile unsigned int postscale = postscalerVal;
 ISR (TIMER2_OVF_vect)
 {
