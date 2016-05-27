@@ -71,7 +71,7 @@ ISR (TIMER2_OVF_vect)
 
 void wakeUpNow()
 {
-   
+   flag_runMainLoop =true;
 }
 
 void setup() 
