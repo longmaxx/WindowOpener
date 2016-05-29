@@ -88,7 +88,8 @@ void setup()
   pinMode(SERVO1_POWER_PIN,OUTPUT);
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
-  init_ServoInitMoves();
+  Serial.begin(57600);
+  //init_ServoInitMoves();
 }
 
 void loop()
@@ -111,10 +112,12 @@ void mainLoop()
 {
   if (onButton_Open())
     {
+      Serial.println(">Button Open pressed");
       open_window1();
     }
     else if (onButton_Close())
     {
+      Serial.println(">Button Close pressed");
       close_window1();
     }
 }
@@ -140,11 +143,17 @@ void moveServo1ToValue(byte value)
 void timerLoop()
 {
   //refresh temperature
+  Serial.println(F(">timerLoop begin"));
   readDS18B20Scratchpad();
   lastCelsium = getTemperatureCelsium();
   //move window 
+  Serial.print(F("Temperature:"));
+  Serial.print((int)lastCelsium); 
+  Serial.flush(); 
+  //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
   moveServo1ToValue(getNeededWindowStateBySensors());
   
+  Serial.println(">timerLoop End");
 }
 
 byte getNeededWindowStateBySensors()
@@ -154,7 +163,7 @@ byte getNeededWindowStateBySensors()
   }
   
   if (lastCelsium <= CELSIUM_LEVEL_CLOSE){
-    return   SERVO1_CLOSED_VAL;
+    return  SERVO1_CLOSED_VAL;
   }
 }
 
