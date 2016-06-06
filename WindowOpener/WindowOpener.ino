@@ -34,6 +34,7 @@ volatile bool flag_runMainLoop = true;
 volatile bool flag_runOnTimerLoop = true;
 
 #define SERIAL_ENABLE_PIN 4
+bool flag_GoSleep = true;
 
 Servo SRV1;
 #define SERVO1_PIN 9
@@ -94,8 +95,9 @@ void setup()
   pinMode(SERVO1_POWER_PIN,OUTPUT);
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
-  if (digitalRead(SERIAL_ENABLE_PIN,LOW)){
+  if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
     Serial.begin(57600);
+    flag_GoSleep = false;
   }
   //init_ServoInitMoves();
 }
@@ -112,7 +114,9 @@ void loop(){
     setup_Timer2();
     setLED(LOW);
   }
-  sleepNow();
+  if (flag_GoSleep){
+    sleepNow();
+  }  
 }
 
 void mainLoop(){
