@@ -18,6 +18,7 @@
   Термометр ds18b20 - пин 12
   //часы DS1307 - пины SDA, CLK
   LED - Nano internal (pin 13)
+  SerialEnable PIN - 4
 */
 
 /*
@@ -31,6 +32,9 @@
 volatile int wdt_counter = 0;
 volatile bool flag_runMainLoop = true;
 volatile bool flag_runOnTimerLoop = true;
+
+#define SERIAL_ENABLE_PIN 4
+
 Servo SRV1;
 #define SERVO1_PIN 9
 #define SERVO1_POWER_PIN 5
@@ -79,16 +83,20 @@ void setup()
   //init pins
   pinMode(LED_PIN,OUTPUT);
   digitalWrite(LED_PIN,LOW);
+  pinMode(SERIAL_ENABLE_PIN,INPUT);
+  digitalWrite(SERIAL_ENABLE_PIN,HIGH);// enable internal pull-up resistor
   
   pinMode(BTN_OPEN1_PIN,INPUT);
-  digitalWrite (BTN_OPEN1_PIN,HIGH);// enable internal resistor
+  digitalWrite (BTN_OPEN1_PIN,HIGH);// enable internal pull-up resistor
   pinMode(BTN_CLOSE1_PIN,INPUT);
-  digitalWrite (BTN_CLOSE1_PIN,HIGH);// enable internal resistor
+  digitalWrite (BTN_CLOSE1_PIN,HIGH);// enable internal pull-up resistor
   // servo PWM
   pinMode(SERVO1_POWER_PIN,OUTPUT);
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
-  Serial.begin(57600);
+  if (digitalRead(SERIAL_ENABLE_PIN,LOW)){
+    Serial.begin(57600);
+  }
   //init_ServoInitMoves();
 }
 
