@@ -59,8 +59,8 @@ bool flag_OneWire_CRC8_ERROR;
 // 1000 = 15 сек
 #define postscalerVal (2000)
 volatile unsigned int postscale = postscalerVal;
-ISR (TIMER2_OVF_vect)
-{
+
+ISR (TIMER2_OVF_vect){
   postscale--;
   if (postscale==0){
     flag_runMainLoop = true;
@@ -70,12 +70,11 @@ ISR (TIMER2_OVF_vect)
   }
 }
 
-void wakeUpNow()
-{
+void wakeUpNow(){
    flag_runMainLoop =true;
 }
 
-void setup() 
+void setup()
 {
   //init pins
   pinMode(LED_PIN,OUTPUT);
@@ -93,8 +92,7 @@ void setup()
   //init_ServoInitMoves();
 }
 
-void loop()
-{
+void loop(){
   if (flag_runMainLoop){
     flag_runMainLoop = false;
     setLED(HIGH);
@@ -109,8 +107,7 @@ void loop()
   sleepNow();
 }
 
-void mainLoop()
-{
+void mainLoop(){
   if (onButton_Open())
     {
       Serial.println(">Button Open pressed");
@@ -123,26 +120,22 @@ void mainLoop()
     }
 }
 
-void open_window1()
-{
+void open_window1(){
   moveServo1ToValue(SERVO1_OPENED_VAL);
 }
 
-void close_window1()
-{
+void close_window1(){
   moveServo1ToValue(SERVO1_CLOSED_VAL);
 }
 
-void moveServo1ToValue(byte value)
-{
+void moveServo1ToValue(byte value){
   servoPower(SERVO_POWER_STATE_ENABLED);
   SRV1.write(value);
   delay(SERVO1_DRIVE_TIME);
   servoPower(SERVO_POWER_STATE_DISABLED);  
 }
 
-void timerLoop()
-{
+void timerLoop(){
   //refresh temperature
   Serial.println(F(">timerLoop begin"));
   readDS18B20Scratchpad();
@@ -157,8 +150,7 @@ void timerLoop()
   Serial.println(">timerLoop End");
 }
 
-byte getNeededWindowStateBySensors()
-{
+signed char getNeededWindowStateBySensors(){
   if (lastCelsium >= CELSIUM_LEVEL_OPEN){
     return SERVO1_OPENED_VAL;  
   }
@@ -168,8 +160,7 @@ byte getNeededWindowStateBySensors()
   }
 }
 
-void setup_Timer2()
-{
+void setup_Timer2(){
   TIMSK2=0x00;
   TCCR2B=0x00;
   TCCR2A=0x00;
@@ -182,33 +173,27 @@ void setup_Timer2()
   postscale = postscalerVal;
 }
 
-void timer2_stop()
-{
+void timer2_stop(){
   TCCR2B = 0;// no clock input
 }
 
-bool onButton_Open()
-{
+bool onButton_Open(){
   return ((digitalRead(BTN_OPEN1_PIN) == BTN_STATE_PRESSED) && (digitalRead(BTN_CLOSE1_PIN) != BTN_STATE_PRESSED));
 }
 
-bool onButton_Close()
-{
+bool onButton_Close(){
   return ((digitalRead(BTN_CLOSE1_PIN) == BTN_STATE_PRESSED) && (digitalRead(BTN_OPEN1_PIN) != BTN_STATE_PRESSED));
 }
 
-void servoPower(int value)
-{
+void servoPower(int value){
   digitalWrite(SERVO1_POWER_PIN,value);
 }
 
-void setLED(int state)
-{
+void setLED(int state){
     digitalWrite(LED_PIN, state);
 }
 
-void init_ServoInitMoves()
-{
+void init_ServoInitMoves(){
   // Servo init move
   servoPower(SERVO_POWER_STATE_ENABLED);
   SRV1.write(SERVO1_OPENED_VAL);
@@ -218,8 +203,8 @@ void init_ServoInitMoves()
 
 }
 
-void sleepNow()         // here we put the arduino to sleep
-{
+void sleepNow(){         // here we put the arduino to sleep
+
     /* Now is the time to set the sleep mode. In the Atmega8 datasheet
      * http://www.atmel.com/dyn/resources/prod_documents/doc2486.pdf on page 35
      * there is a list of sleep modes which explains which clocks and
@@ -279,8 +264,7 @@ void sleepNow()         // here we put the arduino to sleep
 }
 
 //==================Thermometer================================
-void setTemperatureResolution()
-{
+void setTemperatureResolution(){
     ds.reset();
     ds.write(0xCC); // skip ROM
     ds.write(0x4E);///write scratchpad
@@ -310,8 +294,7 @@ void readDS18B20Scratchpad(){
 }
 
 
-float getTemperatureCelsium()
-{
+float getTemperatureCelsium(){
   byte type_s = false;
   // Convert the data to actual temperature
   // because the result is a 16 bit signed integer, it should
@@ -359,16 +342,15 @@ const unsigned char CRC8Table[256] = {
 /*
 This procedure calculates the cumulative Dallas Semiconductor 1–Wire CRC of all bytes passed to it.
 */
-unsigned char  Do_CRC8(unsigned char CRC, unsigned char X)
-{
+unsigned char  Do_CRC8(unsigned char CRC, unsigned char X){
   return CRC8Table[CRC ^ X];//xor
 }
 
-unsigned char Make_CRC8(unsigned char* arr, byte len)
-{
+unsigned char Make_CRC8(unsigned char* arr, byte len){
   unsigned char tmpCRC8 = 0;
   for (byte i=0;i<len;i++){
     tmpCRC8 = Do_CRC8(tmpCRC8,arr[i]);
   }
+  
 }
 
