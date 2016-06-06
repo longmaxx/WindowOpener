@@ -145,12 +145,18 @@ void timerLoop(){
   Serial.print((int)lastCelsium); 
   Serial.flush(); 
   //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
-  moveServo1ToValue(getNeededWindowStateBySensors());
+  signed char valBySensor = getNeededWindowStateBySensors();
+  if (valBySensor != -1){
+    moveServo1ToValue((unsigned char)valBySensor);
+  }  
   
   Serial.println(">timerLoop End");
 }
 
 signed char getNeededWindowStateBySensors(){
+  if (flag_OneWire_CRC8_ERROR){
+    return -1;
+  }
   if (lastCelsium >= CELSIUM_LEVEL_OPEN){
     return SERVO1_OPENED_VAL;  
   }
@@ -288,9 +294,7 @@ void readDS18B20Scratchpad(){
   for ( i = 0; i < 8; i++) {           // we need 9 bytes
     scratchpad[i] = ds.read();
   }
-  flag_OneWire_CRC8_ERROR = (Make_CRC8(scratchpad,8)!= scratchpad[7]);
-  
-      
+  flag_OneWire_CRC8_ERROR = ((Make_CRC8(scratchpad,8)!= scratchpad[8])&&(scratchpad[8] != 0));
 }
 
 
