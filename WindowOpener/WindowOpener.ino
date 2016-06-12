@@ -154,7 +154,9 @@ void timerLoop(){
   lastCelsium = getTemperatureCelsium();
   //move window 
   Serial.print(F("Temperature:"));
-  Serial.print((int)lastCelsium); 
+  Serial.print((int)lastCelsium);
+  Serial.print(" CRC_OK:");
+  Serial.println(flag_OneWire_CRC8_ERROR); 
   Serial.flush(); 
   //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
   signed char valBySensor = getNeededWindowStateBySensors();
@@ -303,10 +305,10 @@ void readDS18B20Scratchpad(){
   ds.write(0xCC);//skip rom
   //ds.reset();    
   ds.write(0xBE);         // Read Scratchpad
-  for ( i = 0; i < 8; i++) {           // we need 9 bytes
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
     scratchpad[i] = ds.read();
   }
-  flag_OneWire_CRC8_ERROR = ((Make_CRC8(scratchpad,8)!= scratchpad[8])&&(scratchpad[8] != 0));
+  flag_OneWire_CRC8_ERROR = ((Make_CRC8(scratchpad,8) == (unsigned char)scratchpad[8]) && (scratchpad[8] != 0));
 }
 
 
@@ -362,11 +364,11 @@ unsigned char  Do_CRC8(unsigned char CRC, unsigned char X){
   return CRC8Table[CRC ^ X];//xor
 }
 
-unsigned char Make_CRC8(unsigned char* arr, byte len){
-  unsigned char tmpCRC8 = 0;
-  for (byte i=0;i<len;i++){
+unsigned char Make_CRC8(unsigned char* arr, unsigned char len){
+  unsigned char tmpCRC8 = 0x00;
+  for (unsigned char i=0;i<len;i++){
     tmpCRC8 = Do_CRC8(tmpCRC8,arr[i]);
   }
-  
+  return tmpCRC8;
 }
 
