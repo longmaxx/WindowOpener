@@ -58,8 +58,8 @@ byte scratchpad[12];
 float lastCelsium;
 bool flag_OneWire_CRC8_ERROR;
 
-#define CELSIUM_LEVEL_OPEN  30 
-#define CELSIUM_LEVEL_CLOSE 20
+#define CELSIUM_LEVEL_OPEN  27 
+#define CELSIUM_LEVEL_CLOSE 22
 
 // 1000 = 15 сек
 #define postscalerVal (2000)
@@ -99,7 +99,7 @@ void setup()
     Serial.begin(57600);
     flag_GoSleep = false;
   }
-  //init_ServoInitMoves();
+  init_ServoInitMoves();
 }
 
 void loop(){
@@ -178,6 +178,7 @@ signed char getNeededWindowStateBySensors(){
   if (lastCelsium <= CELSIUM_LEVEL_CLOSE){
     return  SERVO1_CLOSED_VAL;
   }
+  return -1;
 }
 
 void setup_Timer2(){
@@ -219,6 +220,7 @@ void init_ServoInitMoves(){
   SRV1.write(SERVO1_OPENED_VAL);
   delay(SERVO1_DRIVE_TIME);
   SRV1.write(SERVO1_CLOSED_VAL);
+  delay(SERVO1_DRIVE_TIME);
   servoPower(SERVO_POWER_STATE_DISABLED);
 
 }
@@ -308,7 +310,7 @@ void readDS18B20Scratchpad(){
   for ( i = 0; i < 9; i++) {           // we need 9 bytes
     scratchpad[i] = ds.read();
   }
-  flag_OneWire_CRC8_ERROR = ((Make_CRC8(scratchpad,8) == (unsigned char)scratchpad[8]) && (scratchpad[8] != 0));
+  flag_OneWire_CRC8_ERROR = !((Make_CRC8(scratchpad,8) == (unsigned char)scratchpad[8]) && (scratchpad[8] != 0));
 }
 
 
