@@ -25,8 +25,10 @@
   - Чип уходит в спящий режим между нажатиями на кнопки.
   - Для открытия нажать кнопку BTN_OPEN1_PIN
   - Для закрытия нажать кнопку BTN_CLOSE1_PIN 
-
-  - Выход из спящего режима по нажатию кнопки и каждые 32 секунды по Watchdog
+  - Открытие\закрытие по порогу температур CELSIUM_LEVEL_OPEN / CELSIUM_LEVEL_CLOSE
+  - Пин для ключа питания сервоприводов
+  
+  - Выход из спящего режима по нажатию кнопки и каждые 32 секунды по таймеру
 */
 
 volatile int wdt_counter = 0;
@@ -97,7 +99,7 @@ void setup()
   SRV1.attach(SERVO1_PIN);
   if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
     Serial.begin(57600);
-    flag_GoSleep = false;
+    //flag_GoSleep = false;
   }
   init_ServoInitMoves();
 }
@@ -115,6 +117,7 @@ void loop(){
     setLED(LOW);
   }
   if (flag_GoSleep){
+    delay(100);
     sleepNow();
   }  
 }
@@ -132,6 +135,27 @@ void mainLoop(){
     }
 }
 
+void timerLoop(){
+  //refresh temperature
+  Serial.println(F(">timerLoop begin"));
+  readDS18B20Scratchpad();
+  lastCelsium = getTemperatureCelsium();
+  //move window 
+  Serial.print(F("Temperature:"));
+  Serial.print((int)lastCelsium);
+  Serial.print(" CRC_OK:");
+  Serial.println(!flag_OneWire_CRC8_ERROR); 
+  //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
+  signed char valBySensor = getNeededWindowStateBySensors();
+  Serial.print("New servo position: ");
+  Serial.println(valBySensor);
+  if (valBySensor != -1){
+    moveServo1ToValue((unsigned char)valBySensor);
+  }  
+  
+  Serial.println(">timerLoop End");
+}
+
 void open_window1(){
   moveServo1ToValue(SERVO1_OPENED_VAL);
 }
@@ -145,26 +169,6 @@ void moveServo1ToValue(byte value){
   SRV1.write(value);
   delay(SERVO1_DRIVE_TIME);
   servoPower(SERVO_POWER_STATE_DISABLED);  
-}
-
-void timerLoop(){
-  //refresh temperature
-  Serial.println(F(">timerLoop begin"));
-  readDS18B20Scratchpad();
-  lastCelsium = getTemperatureCelsium();
-  //move window 
-  Serial.print(F("Temperature:"));
-  Serial.print((int)lastCelsium);
-  Serial.print(" CRC_OK:");
-  Serial.println(flag_OneWire_CRC8_ERROR); 
-  Serial.flush(); 
-  //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
-  signed char valBySensor = getNeededWindowStateBySensors();
-  if (valBySensor != -1){
-    moveServo1ToValue((unsigned char)valBySensor);
-  }  
-  
-  Serial.println(">timerLoop End");
 }
 
 signed char getNeededWindowStateBySensors(){
