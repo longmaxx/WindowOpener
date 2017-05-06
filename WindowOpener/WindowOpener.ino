@@ -60,7 +60,7 @@ OneWire OneWirePort(ONE_WIRE1_PIN);
 DallasTemperature DT(&OneWirePort);
 DeviceAddress addr_DS18b20;
 float lastCelsium;
-
+boolean flag_TemperatureSensorError = true;
 
 
 
@@ -103,6 +103,7 @@ void setup()
   SRV1.attach(SERVO1_PIN);
   if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
     Serial.begin(57600);
+    Serial.println(F("Setup"));
     //flag_GoSleep = false;
   }
   init_ServoInitMoves();
@@ -126,7 +127,9 @@ void loop(){
   if (flag_GoSleep){
     delay(100);
     sleepNow();
-  }  
+  }
+
+
 }
 
 void mainLoop(){
@@ -151,11 +154,16 @@ void timerLoop()
 {
   //refresh temperature
   Serial.println(F(">timerLoop begin"));
-  DT.requestTemperatures();
-  lastCelsium = DT.getTempC(*addr_DS18b20);
+  flag_TemperatureSensorError = !DT.isConnected(*addr_DS18b20);
+  if (!flag_TemperatureSensorError){
+    DT.requestTemperatures();
+    lastCelsium = DT.getTempC(*addr_DS18b20);
+  }else{
+    Serial.println(F("Error:Thermometer not found"));
+  }
   //move window 
   Serial.print(F("Temperature:"));
-  Serial.print((int)lastCelsium);
+  Serial.println((int)lastCelsium);
   //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
   signed char valBySensor = getNeededWindowStateBySensors();
   Serial.print("New servo position: ");
@@ -182,6 +190,10 @@ void moveServo1ToValue(byte value){
 }
 
 signed char getNeededWindowStateBySensors(){
+  if (flag_TemperatureSensorError){
+    return -1;
+  }
+  
   if (lastCelsium >= CELSIUM_LEVEL_OPEN){
     return SERVO1_OPENED_VAL;  
   }
