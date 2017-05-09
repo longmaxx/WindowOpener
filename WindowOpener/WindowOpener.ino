@@ -3,7 +3,7 @@
 #include <DallasTemperature.h>
 #include <Servo.h>
 #include <avr/sleep.h>
-#include <avr/wdt.h>
+//#include <avr/wdt.h>
 
 /*
  !!!Для работы WDT надо перепрошивать стандартный загрузчик в ардуино.
@@ -32,7 +32,6 @@
   - Выход из спящего режима по нажатию кнопки и каждые 32 секунды по таймеру
 */
 
-volatile int wdt_counter = 0;
 volatile bool flag_runMainLoop = true;
 volatile bool flag_runOnTimerLoop = true;
 
@@ -46,7 +45,7 @@ Servo SRV1;
 #define SERVO_POWER_STATE_DISABLED LOW
 #define SERVO1_CLOSED_VAL 0
 #define SERVO1_OPENED_VAL 180
-#define SERVO1_DRIVE_TIME 2000
+#define SERVO1_DRIVE_TIME 4000
 
 #define BTN_OPEN1_PIN 2
 #define BTN_CLOSE1_PIN 3
@@ -55,6 +54,14 @@ Servo SRV1;
 
 #define LED_PIN 13
 
+#define ANALOG_PIN A0
+#define PIN_VOLTAGE 6
+int an1;
+float koef_multiply = 5.623;
+float koef_divide = 1000;
+float voltage;
+
+
 #define ONE_WIRE1_PIN 12
 OneWire OneWirePort(ONE_WIRE1_PIN);
 DallasTemperature DT(&OneWirePort);
@@ -62,12 +69,10 @@ DeviceAddress addr_DS18b20;
 float lastCelsium;
 boolean flag_TemperatureSensorError = true;
 
-
-
 #define CELSIUM_LEVEL_OPEN  27 
 #define CELSIUM_LEVEL_CLOSE 22
-
-// 1000 = 15 сек
+//1 cycle = 0.01630 2sec
+// 1000 ~ 15 сек
 #define postscalerVal (2000)
 volatile unsigned int postscale = postscalerVal;
 
@@ -76,12 +81,10 @@ ISR (TIMER2_OVF_vect){
   if (postscale==0){
     flag_runMainLoop = true;
     flag_runOnTimerLoop = true;
-    postscale = postscalerVal;
-    timer2_stop();
   }
 }
 
-void wakeUpNow(){
+void onExtInterrupt(){
    flag_runMainLoop =true;
 }
 
@@ -97,24 +100,32 @@ void setup()
   digitalWrite (BTN_OPEN1_PIN,HIGH);// enable internal pull-up resistor
   pinMode(BTN_CLOSE1_PIN,INPUT);
   digitalWrite (BTN_CLOSE1_PIN,HIGH);// enable internal pull-up resistor
+
+  init_ADC_BAT_MON();
   // servo PWM
   pinMode(SERVO1_POWER_PIN,OUTPUT);
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   SRV1.attach(SERVO1_PIN);
   if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
-    Serial.begin(57600);
+    Serial.begin(115200);
     Serial.println(F("Setup"));
     //flag_GoSleep = false;
   }
   init_ServoInitMoves();
   // OneWire Initialization
   init_Thermometer();
+  postscale = postscalerVal;
+
+  attachInterrupt(0,onExtInterrupt, FALLING); // use interrupt 0 (pin 2) and run function
+  attachInterrupt(1,onExtInterrupt, FALLING);
 }
 
 void loop(){
   if (flag_runMainLoop){
+    postscale = postscalerVal;
     flag_runMainLoop = false;
     setLED(HIGH);
+    measureBatteryVoltage();
     if (flag_runOnTimerLoop){
       flag_runOnTimerLoop = false;
       timerLoop();
@@ -128,8 +139,6 @@ void loop(){
     delay(100);
     sleepNow();
   }
-
-
 }
 
 void mainLoop(){
@@ -294,17 +303,17 @@ void sleepNow(){         // here we put the arduino to sleep
      * In all but the IDLE sleep modes only LOW can be used.
      */
  
-    attachInterrupt(0,wakeUpNow, FALLING); // use interrupt 0 (pin 2) and run function
+    //attachInterrupt(0,onExtInterrupt, FALLING); // use interrupt 0 (pin 2) and run function
                                        // wakeUpNow when pin 2 gets LOW
-    attachInterrupt(1,wakeUpNow, FALLING);                                   
+    //attachInterrupt(1,onExtInterrupt, FALLING);                                   
  
     sleep_mode();            // here the device is actually put to sleep!!
                              // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
  
     sleep_disable();         // first thing after waking from sleep:
                              // disable sleep...
-    detachInterrupt(0);      // disables interrupt 0 on pin 2 so the
-    detachInterrupt(1);      // wakeUpNow code will not be executed
+    //detachInterrupt(0);      // disables interrupt 0 on pin 2 so the
+    //detachInterrupt(1);      // wakeUpNow code will not be executed
                              // during normal running time.
 }
 
@@ -314,6 +323,22 @@ void init_Thermometer()
   DT.begin();
   DT.getAddress(*addr_DS18b20,0);
   DT.setResolution(*addr_DS18b20,TEMP_9_BIT);
-  DT.setWaitForConversion(true);// don't return from 'requestTemperatures()'  before conversion completed
+  DT.setWaitForConversion(true);// don't return from 'requestTemperatures()'  before conversion completed. no need delay
+}
+//=============================================================
+void init_ADC_BAT_MON ()
+{
+  analogReference(INTERNAL);
+  pinMode(PIN_VOLTAGE,OUTPUT);
+}
+
+void measureBatteryVoltage()
+{
+  digitalWrite(PIN_VOLTAGE,HIGH);
+  an1 = analogRead(ANALOG_PIN);
+  voltage =  (an1*koef_multiply)/koef_divide;
+  Serial.print("Battery voltage: ");
+  Serial.println(voltage,2);
+  //digitalWrite(PIN_VOLTAGE,LOW);
 }
 
