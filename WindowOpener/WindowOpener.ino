@@ -16,10 +16,14 @@
   Кнопка Закрыть1 - пин 3
   Ключ питания привода - пин 5
   Сервопривод1 - пин 9
-  Термометр ds18b20 - пин 12
+  Термометр ds18b20 - пин 10
+  ADC замер напряжения питания - A0
+  Нога для подключения питания делителя напряжения - 6
   //часы DS1307 - пины SDA, CLK
   LED - Nano internal (pin 13)
   SerialEnable PIN - 4
+
+  Потребление ~10mA в режиме ожидания. Из-за периферии модуля ардуино.
 */
 
 /*
@@ -28,7 +32,7 @@
   - Для закрытия нажать кнопку BTN_CLOSE1_PIN 
   - Открытие\закрытие по порогу температур CELSIUM_LEVEL_OPEN / CELSIUM_LEVEL_CLOSE
   - Пин для ключа питания сервоприводов
-  
+  - Делитель напряжения запитан от пина. Для отключения и экономии энегрии.
   - Выход из спящего режима по нажатию кнопки и каждые 32 секунды по таймеру
 */
 
@@ -56,13 +60,15 @@ Servo SRV1;
 
 #define ANALOG_PIN A0
 #define PIN_VOLTAGE 6
+#define BATTERY_LOW_VOLTAGE 3.4
+#define BATTERY_FULL_VOLTAGE 4.1
 int an1;
 float koef_multiply = 5.623;
 float koef_divide = 1000;
 float voltage;
 
 
-#define ONE_WIRE1_PIN 12
+#define ONE_WIRE1_PIN 10
 OneWire OneWirePort(ONE_WIRE1_PIN);
 DallasTemperature DT(&OneWirePort);
 DeviceAddress addr_DS18b20;
@@ -102,18 +108,20 @@ void setup()
   digitalWrite (BTN_CLOSE1_PIN,HIGH);// enable internal pull-up resistor
 
   init_ADC_BAT_MON();
+  //disable_ADC_INT_REF();
   // servo PWM
   pinMode(SERVO1_POWER_PIN,OUTPUT);
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
-  SRV1.attach(SERVO1_PIN);
+  //servo1_attach();
   if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
     Serial.begin(115200);
     Serial.println(F("Setup"));
     //flag_GoSleep = false;
   }
-  init_ServoInitMoves();
+  //init_ServoInitMoves();
   // OneWire Initialization
   init_Thermometer();
+  
   postscale = postscalerVal;
 
   attachInterrupt(0,onExtInterrupt, FALLING); // use interrupt 0 (pin 2) and run function
@@ -122,10 +130,10 @@ void setup()
 
 void loop(){
   if (flag_runMainLoop){
+    Serial.println("MainLoop");
     postscale = postscalerVal;
     flag_runMainLoop = false;
     setLED(HIGH);
-    measureBatteryVoltage();
     if (flag_runOnTimerLoop){
       flag_runOnTimerLoop = false;
       timerLoop();
@@ -156,6 +164,7 @@ void mainLoop(){
 
 void batteryHealthLoop()
 {
+  measureBatteryVoltage();
   //TODO: battery charge control  
 }
 
@@ -193,8 +202,10 @@ void close_window1(){
 
 void moveServo1ToValue(byte value){
   servoPower(SERVO_POWER_STATE_ENABLED);
+  servo1_attach();
   SRV1.write(value);
   delay(SERVO1_DRIVE_TIME);
+  SRV1.detach();
   servoPower(SERVO_POWER_STATE_DISABLED);  
 }
 
@@ -246,14 +257,15 @@ void setLED(int state){
     digitalWrite(LED_PIN, state);
 }
 
+void servo1_attach()
+{
+  SRV1.attach(SERVO1_PIN);
+}
+
 void init_ServoInitMoves(){
   // Servo init move
-  servoPower(SERVO_POWER_STATE_ENABLED);
-  SRV1.write(SERVO1_OPENED_VAL);
-  delay(SERVO1_DRIVE_TIME);
-  SRV1.write(SERVO1_CLOSED_VAL);
-  delay(SERVO1_DRIVE_TIME);
-  servoPower(SERVO_POWER_STATE_DISABLED);
+  moveServo1ToValue(SERVO1_OPENED_VAL);
+  moveServo1ToValue(SERVO1_CLOSED_VAL);
 
 }
 
@@ -320,10 +332,16 @@ void sleepNow(){         // here we put the arduino to sleep
 //==================Thermometer================================
 void init_Thermometer()
 {
+  Serial.println("init_Thermometer");
   DT.begin();
-  DT.getAddress(*addr_DS18b20,0);
-  DT.setResolution(*addr_DS18b20,TEMP_9_BIT);
+  Serial.println("IE");
   DT.setWaitForConversion(true);// don't return from 'requestTemperatures()'  before conversion completed. no need delay
+  Serial.println("IE1");
+  DT.getAddress(*addr_DS18b20,0);
+  Serial.println("IE2");
+  DT.setResolution(*addr_DS18b20,TEMP_9_BIT);
+  Serial.println("IE3");
+  
 }
 //=============================================================
 void init_ADC_BAT_MON ()
@@ -332,13 +350,20 @@ void init_ADC_BAT_MON ()
   pinMode(PIN_VOLTAGE,OUTPUT);
 }
 
+void disable_ADC_INT_REF()
+{
+  analogReference(DEFAULT);
+}
+
 void measureBatteryVoltage()
 {
+  init_ADC_BAT_MON ();
   digitalWrite(PIN_VOLTAGE,HIGH);
   an1 = analogRead(ANALOG_PIN);
   voltage =  (an1*koef_multiply)/koef_divide;
   Serial.print("Battery voltage: ");
   Serial.println(voltage,2);
-  //digitalWrite(PIN_VOLTAGE,LOW);
+  digitalWrite(PIN_VOLTAGE,LOW);
+  disable_ADC_INT_REF();
 }
 
