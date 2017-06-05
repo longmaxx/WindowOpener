@@ -1,4 +1,3 @@
-#include <DS1307.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Servo.h>
@@ -172,10 +171,10 @@ void timerLoop()
 {
   //refresh temperature
   Serial.println(F(">timerLoop begin"));
-  flag_TemperatureSensorError = !DT.isConnected(*addr_DS18b20);
+  flag_TemperatureSensorError = !DT.isConnected( addr_DS18b20 );
   if (!flag_TemperatureSensorError){
     DT.requestTemperatures();
-    lastCelsium = DT.getTempC(*addr_DS18b20);
+    lastCelsium = DT.getTempC(addr_DS18b20);
   }else{
     Serial.println(F("Error:Thermometer not found"));
   }
@@ -315,9 +314,9 @@ void sleepNow(){         // here we put the arduino to sleep
      * In all but the IDLE sleep modes only LOW can be used.
      */
  
-    //attachInterrupt(0,onExtInterrupt, FALLING); // use interrupt 0 (pin 2) and run function
+    attachInterrupt(0,onExtInterrupt, FALLING); // use interrupt 0 (pin 2) and run function
                                        // wakeUpNow when pin 2 gets LOW
-    //attachInterrupt(1,onExtInterrupt, FALLING);                                   
+    attachInterrupt(1,onExtInterrupt, FALLING);                                   
  
     sleep_mode();            // here the device is actually put to sleep!!
                              // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP
@@ -334,13 +333,13 @@ void init_Thermometer()
 {
   Serial.println("init_Thermometer");
   DT.begin();
-  Serial.println("IE");
+  
   DT.setWaitForConversion(true);// don't return from 'requestTemperatures()'  before conversion completed. no need delay
-  Serial.println("IE1");
-  DT.getAddress(*addr_DS18b20,0);
-  Serial.println("IE2");
-  DT.setResolution(*addr_DS18b20,TEMP_9_BIT);
-  Serial.println("IE3");
+  
+  DT.getAddress(addr_DS18b20,0);
+  
+  DT.setResolution(addr_DS18b20,TEMP_9_BIT);
+  
   
 }
 //=============================================================
