@@ -46,9 +46,10 @@ Servo SRV1;
 #define SERVO1_POWER_PIN 5
 #define SERVO_POWER_STATE_ENABLED HIGH
 #define SERVO_POWER_STATE_DISABLED LOW
-#define SERVO1_CLOSED_VAL 0
-#define SERVO1_OPENED_VAL 180
+#define SERVO1_CLOSED_VAL (0)
+#define SERVO1_OPENED_VAL (180)
 #define SERVO1_DRIVE_TIME 4000
+#define SERVO_NONEEDMOVE_VAL (-1)
 
 #define BTN_OPEN1_PIN 2
 #define BTN_CLOSE1_PIN 3
@@ -112,12 +113,12 @@ void setup()
   pinMode(SERVO1_POWER_PIN,OUTPUT);
   digitalWrite(SERVO1_POWER_PIN, SERVO_POWER_STATE_DISABLED);
   //servo1_attach();
-  if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
+  //if (digitalRead(SERIAL_ENABLE_PIN)== LOW){
     Serial.begin(115200);
     Serial.println(F("Setup"));
     //flag_GoSleep = false;
-  }
-  //init_ServoInitMoves();
+  //}
+  init_ServoInitMoves();
   // OneWire Initialization
   init_Thermometer();
   
@@ -181,11 +182,12 @@ void timerLoop()
   //move window 
   Serial.print(F("Temperature:"));
   Serial.println((int)lastCelsium);
-  //Serial.println("; Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
-  signed char valBySensor = getNeededWindowStateBySensors();
+  Serial.println("Limits: ");// + String(CELSIUM_LEVEL_CLOSE) + "/" + String(CELSIUM_LEVEL_OPEN));
+  Serial.println("Actual servo state: "+(String)SRV1.read());
+  signed int valBySensor = getNeededWindowStateBySensors();
   Serial.print("New servo position: ");
-  Serial.println(valBySensor);
-  if (valBySensor != -1){
+  Serial.println((signed int)valBySensor);
+  if (valBySensor != SERVO_NONEEDMOVE_VAL){
     moveServo1ToValue((unsigned char)valBySensor);
   }  
   Serial.println(">timerLoop End");
@@ -208,9 +210,9 @@ void moveServo1ToValue(byte value){
   servoPower(SERVO_POWER_STATE_DISABLED);  
 }
 
-signed char getNeededWindowStateBySensors(){
+signed int getNeededWindowStateBySensors(){
   if (flag_TemperatureSensorError){
-    return -1;
+    return SERVO_NONEEDMOVE_VAL;
   }
   
   if (lastCelsium >= CELSIUM_LEVEL_OPEN){
@@ -220,7 +222,7 @@ signed char getNeededWindowStateBySensors(){
   if (lastCelsium <= CELSIUM_LEVEL_CLOSE){
     return  SERVO1_CLOSED_VAL;
   }
-  return -1;
+  return SERVO_NONEEDMOVE_VAL;
 }
 
 void setup_Timer2(){
@@ -263,7 +265,7 @@ void servo1_attach()
 
 void init_ServoInitMoves(){
   // Servo init move
-  moveServo1ToValue(SERVO1_OPENED_VAL);
+  //moveServo1ToValue(SERVO1_OPENED_VAL);
   moveServo1ToValue(SERVO1_CLOSED_VAL);
 
 }
