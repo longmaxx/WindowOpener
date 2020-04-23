@@ -38,28 +38,28 @@
 volatile bool flag_runMainLoop = true;
 volatile bool flag_runOnTimerLoop = true;
 
-#define SERIAL_ENABLE_PIN 4
+#define SERIAL_ENABLE_PIN (4)
 bool flag_GoSleep = true;
 
 Servo SRV1;
-#define SERVO1_PIN 9
-#define SERVO1_POWER_PIN 5
+#define SERVO1_PIN (9)
+#define SERVO1_POWER_PIN (5)
 #define SERVO_POWER_STATE_ENABLED HIGH
 #define SERVO_POWER_STATE_DISABLED LOW
 #define SERVO1_CLOSED_VAL (0)
 #define SERVO1_OPENED_VAL (180)
-#define SERVO1_DRIVE_TIME 4000
+#define SERVO1_DRIVE_TIME (4000)
 #define SERVO_NONEEDMOVE_VAL (-1)
 
-#define BTN_OPEN1_PIN 2
-#define BTN_CLOSE1_PIN 3
+#define BTN_OPEN1_PIN (2)
+#define BTN_CLOSE1_PIN (3)
 #define BTN_STATE_PRESSED LOW
 #define BTN_STATE_UNPRESSED HIGH
 
 #define LED_PIN 13
 
 #define ANALOG_PIN A0
-#define PIN_VOLTAGE 6
+#define PIN_VOLTAGE (6)
 #define BATTERY_LOW_VOLTAGE 3.4
 #define BATTERY_FULL_VOLTAGE 4.1
 int an1;
@@ -68,15 +68,16 @@ float koef_divide = 1000;
 float voltage;
 
 
-#define ONE_WIRE1_PIN 10
+#define ONE_WIRE1_PIN (10)
 OneWire OneWirePort(ONE_WIRE1_PIN);
+#define TEMP_9_BIT (9)
 DallasTemperature DT(&OneWirePort);
 DeviceAddress addr_DS18b20;
 float lastCelsium;
 boolean flag_TemperatureSensorError = true;
 
-#define CELSIUM_LEVEL_OPEN  27 
-#define CELSIUM_LEVEL_CLOSE 22
+#define CELSIUM_LEVEL_OPEN  (27) 
+#define CELSIUM_LEVEL_CLOSE (22)
 //1 cycle = 0.01630 2sec
 // 1000 ~ 15 сек
 #define postscalerVal (2000)
@@ -367,4 +368,3 @@ void measureBatteryVoltage()
   digitalWrite(PIN_VOLTAGE,LOW);
   disable_ADC_INT_REF();
 }
-
